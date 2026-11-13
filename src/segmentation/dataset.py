@@ -29,21 +29,8 @@ class SegmentationDataset(Dataset):
         image = Image.open(image_path).convert("RGB")
         mask = Image.open(mask_path).convert("L")
 
-        if self.is_train:
-            # Joint Spatial Transformations (Image + Mask)
-            if random.random() > 0.5:
-                image = F.hflip(image)
-                mask = F.hflip(mask)
-
-            if random.random() > 0.5:
-                angle = random.uniform(-15, 15)
-                image = F.rotate(image, angle)
-                mask = F.rotate(mask, angle, interpolation=transforms.InterpolationMode.NEAREST)
-
-            # Color jitter only on image
-            if random.random() > 0.5:
-                jitter = transforms.ColorJitter(brightness=0.1, contrast=0.1)
-                image = jitter(image)
+        # Zero Image Augmentation: Strict pixel-fidelity standardization
+        # Preserves pixel-precise defect boundaries and ground-truth segmentation masks
 
         if self.image_transform:
             image = self.image_transform(image)

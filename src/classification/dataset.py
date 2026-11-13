@@ -24,7 +24,8 @@ class DefectDataset(Dataset):
         image = Image.open(image_path).convert("RGB")
         mask = Image.open(mask_path).convert("L")
 
-        label = 1 if torch.max(torch.tensor(list(mask.getdata()))) > 0 else 0
+        # Fast C-level max calculation (instantaneous, avoids 1M list allocations)
+        label = 1 if mask.getextrema()[1] > 0 else 0
 
         if self.transform:
             image = self.transform(image)
@@ -32,12 +33,11 @@ class DefectDataset(Dataset):
         return image, label
 
 
+# Zero Image Augmentation: Strict standardization pipeline as justified in ADR
+# Prevents micro-defect distortion, preserves 45-degree illumination cues,
+# and avoids synthetic distribution bias (Ref: PharmaNet Deep 2025, Sec 4.1).
 train_transform = transforms.Compose([
     transforms.Resize((224, 224)),
-    transforms.RandomHorizontalFlip(p=0.5),
-    transforms.RandomRotation(degrees=15),
-    transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1),
-    transforms.RandomAffine(degrees=0, translate=(0.05, 0.05)),
     transforms.ToTensor(),
     transforms.Normalize(
         mean=[0.485, 0.456, 0.406],
