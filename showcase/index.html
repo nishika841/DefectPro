@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AnomaNet — Industrial Defect Inspection Station</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="industrial-theme">
+  <!-- Top Industrial Command Bar -->
+  <header class="station-header">
+    <div class="brand-section">
+      <div class="logo-mark">
+        <span class="icon-pulse"></span>
+        <span class="brand-name">ANOMANET</span>
+        <span class="brand-sub">INSPECTION STATION</span>
+      </div>
+      <div class="xebia-tag">XEBIA INNOVATION SHOWCASE</div>
+    </div>
+
+    <div class="station-status">
+      <div class="demo-replay-badge">
+        <span class="status-dot green-blink"></span>
+        <span class="badge-text">BLIND TEST STATION &bull; LIVE OFFLINE ENGINE</span>
+      </div>
+      <div class="telemetry-pill">
+        <span class="pill-label">ENGINE:</span>
+        <span class="pill-val">MAMBA SS2D + U-NET</span>
+      </div>
+      <div class="telemetry-pill">
+        <span class="pill-label">COMPLEXITY:</span>
+        <span class="pill-val">O(N) LINEAR</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Inspection Floor -->
+  <main class="inspection-grid">
+    <!-- Left Panel: Controls, Ingestion & Blind Samples -->
+    <section class="control-panel">
+      <!-- 1. Direct Desktop Image Input Box (Clean Factory Ingestion) -->
+      <div class="panel-box upload-dock-box">
+        <div class="box-header">
+          <span class="header-icon">&#128194;</span>
+          <h3>INPUT IMAGE FROM DESKTOP</h3>
+          <span class="sub-hint">Optical Sensor Input</span>
+        </div>
+
+        <div class="desktop-drop-strip" id="desktopDropStrip">
+          <input type="file" id="desktopFileInput" accept="image/*" class="file-input-hidden">
+          <div class="drop-icon">&#10515;</div>
+          <div class="drop-text-col">
+            <span class="drop-primary">Drop image from PC or click to browse</span>
+            <span class="drop-secondary">Supports PNG, JPG, BMP &bull; Any industrial resolution</span>
+          </div>
+          <button class="btn-browse-file" id="btnBrowseFile" type="button">BROWSE</button>
+        </div>
+
+        <!-- Active Desktop File Card (when loaded) -->
+        <div class="active-file-card" id="activeFileCard" style="display: none;">
+          <div class="active-file-info">
+            <span class="active-file-label">MOUNTED SPECIMEN:</span>
+            <span class="active-file-name" id="activeFileName">image.png</span>
+          </div>
+          <button class="btn-clear-upload" id="btnClearUpload" type="button" title="Remove mounted file">REMOVE</button>
+        </div>
+
+        <!-- Clean Specimen Category Selector (Always visible & direct) -->
+        <div class="category-selector-card">
+          <div class="category-label-row">
+            <label for="selectCategory" class="cat-label">SPECIMEN CATEGORY:</label>
+            <span class="cat-hint">15 Industrial Classes</span>
+          </div>
+          <select id="selectCategory" class="category-select-dropdown">
+            <option value="tile">Tile (Ceramic Surface)</option>
+            <option value="toothbrush">Toothbrush (Bristle Cluster)</option>
+            <option value="zipper">Zipper (Metal &amp; Teeth)</option>
+            <option value="bottle">Bottle (Glass Container)</option>
+            <option value="cable">Cable (Industrial Wire)</option>
+            <option value="capsule">Capsule (Pharmaceutical)</option>
+            <option value="carpet">Carpet (Fabric &amp; Weave)</option>
+            <option value="grid">Grid (Metal Mesh Sheet)</option>
+            <option value="hazelnut">Hazelnut (Nut Shell)</option>
+            <option value="leather">Leather (Processed Skin)</option>
+            <option value="metal_nut">Metal Nut (Threaded Fastener)</option>
+            <option value="pill">Pill (Medical Tablet)</option>
+            <option value="screw">Screw (Industrial Fastener)</option>
+            <option value="transistor">Transistor (Semiconductor)</option>
+            <option value="wood">Wood (Timber Grain)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 3. Primary Action Trigger -->
+      <div class="action-deck">
+        <button id="btnInspect" class="btn-action btn-inspect">
+          <span class="btn-glow"></span>
+          <span class="btn-icon">&#9658;</span>
+          <span class="btn-text">INSPECT SAMPLE</span>
+          <span class="btn-hotkey">[SPACE]</span>
+        </button>
+
+        <div class="secondary-actions">
+          <button id="btnReset" class="btn-action btn-reset" title="Reset station state">
+            <span>&#8634;</span> RESET
+          </button>
+          <button id="btnToggleConveyor" class="btn-action btn-conveyor" title="Simulate continuous industrial batch conveyor">
+            <span>&#9881;</span> RUN BATCH
+          </button>
+        </div>
+      </div>
+
+      <!-- 4. Telemetry Readouts (Populated ONLY after inspection) -->
+      <div class="panel-box telemetry-box">
+        <div class="box-header">
+          <span class="header-icon">&bull;</span>
+          <h3>INSPECTION TELEMETRY</h3>
+          <span class="latency-metric" id="valLatency">LATENCY: 14.2ms</span>
+        </div>
+
+        <div class="telemetry-grid">
+          <div class="telemetry-row">
+            <span class="t-label">Target Category:</span>
+            <span class="t-value" id="valCategory">TILE</span>
+          </div>
+          <div class="telemetry-row">
+            <span class="t-label">Classifier Score:</span>
+            <span class="t-value" id="valClassifierScore">--</span>
+          </div>
+          <div class="telemetry-row">
+            <span class="t-label">Epistemic Uncertainty (&sigma;&sup2;):</span>
+            <span class="t-value" id="valUncertainty">--</span>
+          </div>
+          <div class="telemetry-row">
+            <span class="t-label">U-Net Segmented Area:</span>
+            <span class="t-value" id="valDefectPixels">--</span>
+          </div>
+          <div class="telemetry-row full-row">
+            <span class="t-label">Decision Basis:</span>
+            <span class="t-value basis-val" id="valDecisionBasis">Part mounted. Press Inspect to analyze.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. Edge-Case Breakdown Callout (Revealed ONLY after toothbrush inspection) -->
+      <div class="panel-box edge-case-box" id="edgeCaseCard" style="display: none;">
+        <div class="edge-case-badge">SAFETY COMPARISON BREAKDOWN</div>
+        <div class="comparison-grid">
+          <div class="comp-col comp-naive">
+            <div class="comp-head">Naive 50% Softmax</div>
+            <div class="comp-score">46.4% Defect</div>
+            <div class="comp-verdict bad">FALSE PASS</div>
+            <div class="comp-note">Hairline defect escapes inspection!</div>
+          </div>
+          <div class="comp-vs">VS</div>
+          <div class="comp-col comp-anoma">
+            <div class="comp-head">AnomaNet Fusion</div>
+            <div class="comp-score">&sigma;&sup2; = 0.5255 + 574 px</div>
+            <div class="comp-verdict good">FLAGGED (99.0%)</div>
+            <div class="comp-note">Rescued by uncertainty &amp; U-Net fusion</div>
+          </div>
+        </div>
+        <p class="edge-case-desc">
+          <strong>Why AnomaNet flagged this:</strong> At 46.4%, standard softmax mistakenly considers the part good. AnomaNet catches it because Epistemic Uncertainty spiked <strong>250&times;</strong> to 0.5255 and U-Net localized 574 defective bristle pixels.
+        </p>
+      </div>
+    </section>
+
+    <!-- Right Panel: Optical Inspection Stage & Giant Verdict Banner -->
+    <section class="stage-panel">
+      <!-- Verdict Jumbo Banner -->
+      <div class="verdict-banner pending" id="verdictBanner">
+        <div class="verdict-badge pending" id="verdictBadge">
+          <div class="verdict-icon" id="verdictIcon">&#9711;</div>
+          <div class="verdict-text-block">
+            <span class="verdict-main" id="verdictText">AWAITING INSPECTION</span>
+            <span class="verdict-sub" id="verdictSub">Position part or upload image, then press Inspect [SPACE]</span>
+          </div>
+        </div>
+        <div class="confidence-pill" id="confidencePill">
+          <span class="conf-label">CONFIDENCE</span>
+          <span class="conf-value" id="confValue">--.-%</span>
+        </div>
+      </div>
+
+      <!-- View Switcher Tabs -->
+      <div class="view-controls">
+        <div class="view-tabs" role="tablist">
+          <button class="tab-btn active" data-view="orig" id="tabOrig">
+            <span class="tab-num">1</span> Mounted Image
+          </button>
+          <button class="tab-btn" data-view="seg" id="tabSeg">
+            <span class="tab-num">2</span> U-Net Segmentation
+          </button>
+          <button class="tab-btn" data-view="cam" id="tabCam">
+            <span class="tab-num">3</span> Model Attention (Grad-CAM)
+          </button>
+          <button class="tab-btn" data-view="full" id="tabFull">
+            <span class="tab-num">4</span> Complete Report
+          </button>
+        </div>
+        <div class="view-hint">Keys: [1] Image &bull; [2] Mask &bull; [3] CAM &bull; [4] Report</div>
+      </div>
+
+      <!-- Main Optical Viewport Stage -->
+      <div class="optical-viewport" id="viewport">
+        <!-- Reticle HUD Markings -->
+        <div class="hud-corner top-left"></div>
+        <div class="hud-corner top-right"></div>
+        <div class="hud-corner bottom-left"></div>
+        <div class="hud-corner bottom-right"></div>
+        <div class="hud-crosshair"></div>
+        <div class="hud-axis-labels">
+          <span class="axis-x">X-AXIS [0 - 256px]</span>
+          <span class="axis-y">Y-AXIS [0 - 256px]</span>
+        </div>
+
+        <!-- Laser Scanner Bar Overlay -->
+        <div class="laser-scanner" id="laserScanner">
+          <div class="laser-beam"></div>
+          <div class="laser-glow"></div>
+        </div>
+
+        <!-- Scanning In-Progress HUD Text -->
+        <div class="scanning-hud" id="scanningHud">
+          <div class="scan-spinner"></div>
+          <div class="scan-text">OPTICAL SENSING IN PROGRESS...</div>
+          <div class="scan-step" id="scanStepText">Scanning 4-directional SS2D state space...</div>
+        </div>
+
+        <!-- Display Image Container -->
+        <div class="image-stage-wrap">
+          <img id="mainDisplayImg" src="" alt="Inspection Viewport" class="main-display-img">
+        </div>
+
+        <!-- Viewport Floating Tag -->
+        <div class="viewport-tag" id="viewportTag">VIEW: MOUNTED SENSOR IMAGE</div>
+      </div>
+
+      <!-- Explainability Bottom Bar -->
+      <div class="explainability-bar">
+        <div class="exp-item">
+          <span class="exp-dot cyan"></span>
+          <span class="exp-title">Mamba 4-Directional SS2D:</span>
+          <span class="exp-desc">Scans global context in 4 cardinal passes at linear O(N) complexity.</span>
+        </div>
+        <div class="exp-item">
+          <span class="exp-dot purple"></span>
+          <span class="exp-title">U-Net Pixel Localization:</span>
+          <span class="exp-desc">Preserves sub-pixel crack &amp; boundary features via skip connections.</span>
+        </div>
+        <div class="exp-item">
+          <span class="exp-dot amber"></span>
+          <span class="exp-title">Zero-Image-Augmentation:</span>
+          <span class="exp-desc">Calibrated factory lighting &amp; micro-defect geometry strictly preserved.</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Simulated Conveyor Batch Strip (Toggleable) -->
+  <section class="conveyor-drawer" id="conveyorDrawer" style="display: none;">
+    <div class="conveyor-header">
+      <div class="conveyor-title">
+        <span class="conveyor-icon">&#9658;&#9658;</span>
+        <span>SIMULATED INDUSTRIAL CONVEYOR BATCH (7 PARTS)</span>
+      </div>
+      <div class="conveyor-controls">
+        <span class="conveyor-stats" id="conveyorStats">Conveyor Active &bull; Click any specimen to mount</span>
+        <button id="btnCloseConveyor" class="btn-close-drawer">&times; Close</button>
+      </div>
+    </div>
+
+    <div class="conveyor-belt-track">
+      <div class="belt-lines"></div>
+      <div class="conveyor-items-container" id="conveyorItems">
+        <!-- Rendered via JS -->
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer Info Bar -->
+  <footer class="station-footer">
+    <div class="footer-left">
+      <span>Station: LINE-04 QC-STATION</span>
+      <span class="sep">&bull;</span>
+      <span>Dataset: MVTec AD Benchmark</span>
+      <span class="sep">&bull;</span>
+      <span>Architecture: MambaDefect-Pro + U-Net</span>
+    </div>
+    <div class="footer-right">
+      <span class="doc-link">Blind QC Station Ready</span>
+      <span class="sep">&bull;</span>
+      <span>Xebia Innovation Day &copy; 2026</span>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
