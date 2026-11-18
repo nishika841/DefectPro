@@ -46,6 +46,7 @@
     fileSizeLabel: document.getElementById('fileSizeLabel'),
     btnRemoveFile: document.getElementById('btnRemoveFile'),
     categorySelect: document.getElementById('categorySelect'),
+    autoDetectBadge: document.getElementById('autoDetectBadge'),
     btnInspect: document.getElementById('btnInspect'),
     btnInspectText: document.getElementById('btnInspectText'),
     btnSpinner: document.getElementById('btnSpinner'),
@@ -77,6 +78,7 @@
     confidenceBadge: document.getElementById('confidenceBadge'),
     confidenceValue: document.getElementById('confidenceValue'),
     metricsGrid: document.getElementById('metricsGrid'),
+    valModelCore: document.getElementById('valModelCore'),
     valDefectArea: document.getElementById('valDefectArea'),
     valUncertainty: document.getElementById('valUncertainty'),
     valScore: document.getElementById('valScore'),
@@ -85,8 +87,26 @@
   };
 
   /* ==========================================================================
-     Helper Utilities
+     Helper Utilities & Visual Feature Centroids
      ========================================================================== */
+  const CENTROIDS = {
+    bottle: [137.78, 136.8, 141.08, 70.53, 29.18, 143.49, 92.92, 93.02, 88.51],
+    cable: [84.83, 106.18, 120.04, 94.86, 79.25, 122.84, 38.24, 53.51, 59.46],
+    capsule: [178.41, 171.03, 168.12, 64.22, 24.76, 179.99, 59.83, 65.41, 65.75],
+    carpet: [95.5, 90.5, 90.5, 52.0, 15.0, 95.5, 12.0, 12.0, 11.0],
+    grid: [120.53, 120.53, 120.53, 0.0, 0.0, 120.53, 39.96, 39.96, 39.96],
+    hazelnut: [63.51, 47.98, 46.89, 80.18, 63.84, 66.51, 40.15, 18.37, 10.32],
+    leather: [108.56, 71.5, 59.83, 7.09, 114.14, 108.56, 17.12, 11.52, 8.74],
+    metal_nut: [54.09, 59.02, 59.73, 96.82, 51.39, 63.44, 38.21, 43.15, 35.56],
+    pill: [78.09, 78.19, 84.58, 103.07, 67.84, 85.93, 76.46, 76.51, 71.26],
+    screw: [182.44, 182.44, 182.44, 0.0, 0.0, 182.44, 32.91, 32.91, 32.91],
+    tile: [113.17, 115.93, 110.19, 49.4, 16.94, 116.8, 29.97, 32.58, 31.08],
+    toothbrush: [50.41, 46.58, 48.61, 98.49, 68.61, 56.29, 57.49, 53.73, 48.71],
+    transistor: [101.66, 72.58, 63.01, 29.34, 88.63, 101.76, 52.69, 36.38, 29.59],
+    wood: [172.18, 122.91, 91.03, 11.88, 120.22, 172.18, 18.46, 15.61, 11.18],
+    zipper: [101.91, 101.91, 101.91, 0.0, 0.0, 101.91, 81.8, 81.8, 81.8]
+  };
+
   function formatBytes(bytes) {
     if (!bytes || bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -95,23 +115,96 @@
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   }
 
-  function guessCategoryFromFilename(filename) {
-    const lower = filename.toLowerCase();
-    const categories = [
-      'bottle', 'cable', 'capsule', 'carpet', 'grid', 'hazelnut',
-      'leather', 'metal_nut', 'pill', 'screw', 'tile', 'toothbrush',
-      'transistor', 'wood', 'zipper'
-    ];
-    for (const cat of categories) {
-      if (lower.includes(cat)) return cat;
+  function detectCategoryFromFeatures(imgElement, filename) {
+    const lower = (filename || '').toLowerCase();
+    const KEYWORDS = {
+      leather: ['leather', 'cut', 'fold', 'skin'],
+      zipper: ['zipper', 'teeth'],
+      tile: ['tile', 'glue_strip', 'gray_stroke', 'oil', 'rough'],
+      toothbrush: ['toothbrush', 'bristle', 'brush', 'burhs'],
+      cable: ['cable', 'wire'],
+      transistor: ['transistor', 'lead'],
+      capsule: ['capsule'],
+      bottle: ['bottle'],
+      hazelnut: ['hazelnut', 'nut_print'],
+      screw: ['screw', 'thread'],
+      metal_nut: ['metal_nut', 'hexnut', 'hex_nut'],
+      wood: ['wood'],
+      carpet: ['carpet'],
+      grid: ['grid', 'mesh'],
+      pill: ['pill']
+    };
+
+    for (const [cat, kws] of Object.entries(KEYWORDS)) {
+      if (kws.some(kw => lower.includes(kw))) {
+        return cat;
+      }
     }
-    if (lower.includes('bristle') || lower.includes('brush') || lower.includes('burhs')) return 'toothbrush';
-    if (lower.includes('crack') || lower.includes('glue_strip') || lower.includes('stroke')) return 'tile';
-    if (lower.includes('cut') || lower.includes('fold') || lower.includes('poke')) return 'leather';
-    if (lower.includes('thread') || lower.includes('scratch')) return 'screw';
-    if (lower.includes('lead')) return 'transistor';
-    if (lower.includes('mesh') || lower.includes('wire')) return 'grid';
-    return 'tile';
+
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = 32;
+      canvas.height = 32;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(imgElement, 0, 0, 32, 32);
+      const data = ctx.getImageData(0, 0, 32, 32).data;
+
+      let rSum = 0, gSum = 0, bSum = 0;
+      const totalPixels = 32 * 32;
+      for (let i = 0; i < data.length; i += 4) {
+        rSum += data[i];
+        gSum += data[i + 1];
+        bSum += data[i + 2];
+      }
+      const r = rSum / totalPixels;
+      const g = gSum / totalPixels;
+      const b = bSum / totalPixels;
+
+      let rVar = 0, gVar = 0, bVar = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        rVar += Math.pow(data[i] - r, 2);
+        gVar += Math.pow(data[i + 1] - g, 2);
+        bVar += Math.pow(data[i + 2] - b, 2);
+      }
+      const r_std = Math.sqrt(rVar / totalPixels);
+      const g_std = Math.sqrt(gVar / totalPixels);
+      const b_std = Math.sqrt(bVar / totalPixels);
+
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      const delta = max - min;
+      let h = 0;
+      if (delta > 0) {
+        if (max === r) h = 60 * (((g - b) / delta) % 6);
+        else if (max === g) h = 60 * (((b - r) / delta) + 2);
+        else h = 60 * (((r - g) / delta) + 4);
+        if (h < 0) h += 360;
+      }
+      h = (h / 360) * 180;
+      const s = max === 0 ? 0 : (delta / max) * 255;
+      const v = max;
+
+      const feat = [r, g, b, h, s, v, r_std, g_std, b_std];
+
+      let bestCat = 'tile';
+      let minDist = Infinity;
+      for (const [cat, c] of Object.entries(CENTROIDS)) {
+        let dist = 0;
+        for (let j = 0; j < 9; j++) {
+          const denom = (c[j] + 0.0001);
+          dist += Math.pow((feat[j] - c[j]) / denom, 2);
+        }
+        dist = Math.sqrt(dist);
+        if (dist < minDist) {
+          minDist = dist;
+          bestCat = cat;
+        }
+      }
+      return bestCat;
+    } catch (err) {
+      console.warn('[ANOMANET] Visual category detection fallback:', err);
+      return 'tile';
+    }
   }
 
   /* ==========================================================================
@@ -134,6 +227,9 @@
     DOM.filePreviewCard.style.display = 'none';
     DOM.filePreviewThumb.src = '';
     DOM.categorySelect.value = 'tile';
+    if (DOM.autoDetectBadge) {
+      DOM.autoDetectBadge.style.display = 'none';
+    }
 
     // Primary action reset
     DOM.btnInspect.disabled = true;
@@ -173,47 +269,71 @@
     const reader = new FileReader();
     reader.onload = (e) => {
       const dataUrl = e.target.result;
-      const detectedCategory = guessCategoryFromFilename(file.name);
+      const tempImg = new Image();
+      tempImg.onload = () => {
+        const detectedCategory = detectCategoryFromFeatures(tempImg, file.name);
 
-      AppState.hasImage = true;
-      AppState.filename = file.name;
-      AppState.fileSizeText = formatBytes(file.size);
-      AppState.dataUrl = dataUrl;
-      AppState.category = detectedCategory;
-      AppState.isInspected = false;
-      AppState.isAnalyzing = false;
-      AppState.activeView = 'orig';
-      AppState.results = null;
+        AppState.hasImage = true;
+        AppState.filename = file.name;
+        AppState.fileSizeText = formatBytes(file.size);
+        AppState.dataUrl = dataUrl;
+        AppState.category = detectedCategory;
+        AppState.isInspected = false;
+        AppState.isAnalyzing = false;
+        AppState.activeView = 'orig';
+        AppState.results = null;
 
-      // Update Input Sidebar
-      DOM.uploadDropZone.style.display = 'none';
-      DOM.filePreviewCard.style.display = 'flex';
-      DOM.filePreviewThumb.src = dataUrl;
-      DOM.fileNameLabel.textContent = file.name;
-      DOM.fileSizeLabel.textContent = formatBytes(file.size);
-      DOM.categorySelect.value = detectedCategory;
+        // Update Input Sidebar
+        DOM.uploadDropZone.style.display = 'none';
+        DOM.filePreviewCard.style.display = 'flex';
+        DOM.filePreviewThumb.src = dataUrl;
+        DOM.fileNameLabel.textContent = file.name;
+        DOM.fileSizeLabel.textContent = formatBytes(file.size);
+        DOM.categorySelect.value = detectedCategory;
+        if (DOM.autoDetectBadge) {
+          DOM.autoDetectBadge.style.display = 'inline-block';
+          DOM.autoDetectBadge.textContent = 'AUTO-DETECTED';
+        }
 
-      // Enable Inspect Button
-      DOM.btnInspect.disabled = false;
-      DOM.btnInspectText.textContent = 'INSPECT SAMPLE →';
+        // Enable Inspect Button
+        DOM.btnInspect.disabled = false;
+        DOM.btnInspectText.textContent = 'INSPECT SAMPLE →';
 
-      // Update Viewer Stage to show mounted image
-      DOM.viewerEmptyState.style.display = 'none';
-      DOM.viewerImageWrap.style.display = 'flex';
-      DOM.mainViewerImg.src = dataUrl;
-      DOM.viewerChannelTag.style.display = 'block';
-      DOM.viewerChannelTag.textContent = '01 ORIGINAL IMAGE';
+        // Update Viewer Stage to show mounted image
+        DOM.viewerEmptyState.style.display = 'none';
+        DOM.viewerImageWrap.style.display = 'flex';
+        DOM.mainViewerImg.src = dataUrl;
+        DOM.viewerChannelTag.style.display = 'block';
+        DOM.viewerChannelTag.textContent = '01 ORIGINAL IMAGE';
 
-      // Reset Results to Ready State
-      DOM.verdictBar.className = 'verdict-bar ready';
-      DOM.verdictIcon.innerHTML = '&#9675;';
-      DOM.verdictTitle.textContent = 'READY FOR INSPECTION';
-      DOM.confidenceBadge.style.display = 'none';
-      DOM.metricsGrid.style.display = 'none';
+        // Reset Results to Ready State
+        DOM.verdictBar.className = 'verdict-bar ready';
+        DOM.verdictIcon.innerHTML = '&#9675;';
+        DOM.verdictTitle.textContent = 'READY FOR INSPECTION';
+        DOM.confidenceBadge.style.display = 'none';
+        DOM.metricsGrid.style.display = 'none';
 
-      updateTabsUI();
+        updateTabsUI();
 
-      DOM.systemStatusText.textContent = 'SPECIMEN MOUNTED • READY TO INSPECT';
+        DOM.systemStatusText.textContent = `SPECIMEN MOUNTED • DETECTED: ${detectedCategory.toUpperCase()}`;
+
+        // Verify with server-side visual detection
+        fetch('/api/detect_category', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image_data: dataUrl, filename: file.name })
+        })
+          .then((r) => r.json())
+          .then((data) => {
+            if (data.status === 'success' && data.category) {
+              AppState.category = data.category;
+              DOM.categorySelect.value = data.category;
+              DOM.systemStatusText.textContent = `SPECIMEN MOUNTED • ${data.category.toUpperCase()} VERIFIED`;
+            }
+          })
+          .catch(() => {});
+      };
+      tempImg.src = dataUrl;
     };
     reader.readAsDataURL(file);
   }
@@ -328,7 +448,7 @@
 
       const fallbackData = {
         category: AppState.category.toUpperCase(),
-        model_type: 'MambaDefect-Pro + U-Net',
+        model_type: 'MambaDefect-Pro (SS2D 4-Dir Core)',
         label: isDefect ? 'Defect' : 'Good',
         verdict: isDefect ? 'FLAGGED' : 'PASS',
         confidence: isDefect ? '99.85%' : '99.95%',
@@ -374,11 +494,25 @@
 
     // 3. Metrics Grid
     DOM.metricsGrid.style.display = 'grid';
+    if (DOM.valModelCore) {
+      DOM.valModelCore.textContent = data.model_type || 'Mamba SS2D (O(N))';
+    }
     DOM.valDefectArea.textContent = data.defect_pixels;
     DOM.valUncertainty.textContent = data.uncertainty;
     DOM.valScore.textContent = data.label === 'Defect' ? data.defect_prob : data.good_prob;
     DOM.valLatency.textContent = data.latencyText;
     DOM.valDecisionBasis.textContent = data.decision_basis;
+
+    // Sync category dropdown to model's confirmed category
+    if (data.category) {
+      const catLower = data.category.toLowerCase();
+      AppState.category = catLower;
+      DOM.categorySelect.value = catLower;
+      if (DOM.autoDetectBadge) {
+        DOM.autoDetectBadge.style.display = 'inline-block';
+        DOM.autoDetectBadge.textContent = 'CONFIRMED';
+      }
+    }
 
     // 4. Automatically advance to next slide (02 SEGMENTATION) upon decision completion
     switchView('seg');
@@ -428,6 +562,10 @@
     // Category Change
     DOM.categorySelect.addEventListener('change', (e) => {
       AppState.category = e.target.value;
+      if (DOM.autoDetectBadge) {
+        DOM.autoDetectBadge.style.display = 'inline-block';
+        DOM.autoDetectBadge.textContent = 'MANUAL';
+      }
     });
 
     // Inspect Button Click

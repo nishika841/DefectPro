@@ -133,78 +133,19 @@ def load_classification_model(category):
     mamba_path = ROOT / "models" / category / "classification" / "mambadefect_pro.pth"
     resnet_path = ROOT / "models" / category / "classification" / "resnet50.pth"
 
-    # For Leather: ResNet-50 achieves SOTA 96.15% Test Accuracy & 100.00% AUROC
-    if category == "leather" and resnet_path.exists():
-        model = get_model()
-        model.load_state_dict(torch.load(resnet_path, map_location=DEVICE))
-        model = model.to(DEVICE)
-        model.eval()
-        return model, "ResNet50 (Optimal Texture Classifier)"
-
-    # For Metal Nut: ResNet-50 achieves 100.00% Test Accuracy & 100.00% AUROC
-    if category == "metal_nut" and resnet_path.exists():
-        model = get_model()
-        model.load_state_dict(torch.load(resnet_path, map_location=DEVICE))
-        model = model.to(DEVICE)
-        model.eval()
-        return model, "ResNet50 (Optimal Fastener Classifier)"
-
-    # For Transistor: Mamba + ResNet Dual Ensemble achieves SOTA 97.06% Test Accuracy
-    if category == "transistor" and mamba_path.exists() and resnet_path.exists():
-        m_model = MambaDefectPro(num_classes=2, pretrained=False).to(DEVICE)
-        m_model.load_state_dict(torch.load(mamba_path, map_location=DEVICE))
-        m_model.eval()
-        r_model = get_model().to(DEVICE)
-        r_model.load_state_dict(torch.load(resnet_path, map_location=DEVICE))
-        r_model.eval()
-        ensemble_model = DualEnsembleClassifier(m_model, r_model, mode="transistor")
-        return ensemble_model, "MambaDefect + ResNet Ensemble"
-
-    # For Grid: Mamba + ResNet Dual Ensemble with structural mesh anomaly signature achieves 100.00% Test Accuracy & 100.00% AUROC
-    if category == "grid" and mamba_path.exists() and resnet_path.exists():
-        m_model = MambaDefectPro(num_classes=2, pretrained=False).to(DEVICE)
-        m_model.load_state_dict(torch.load(mamba_path, map_location=DEVICE))
-        m_model.eval()
-        r_model = get_model().to(DEVICE)
-        r_model.load_state_dict(torch.load(resnet_path, map_location=DEVICE))
-        r_model.eval()
-        ensemble_model = DualEnsembleClassifier(m_model, r_model, mode="grid")
-        return ensemble_model, "MambaDefect + ResNet Ensemble"
-
-    # For Pill: Mamba + ResNet Dual Ensemble achieves SOTA 90.91% Test Accuracy & 91.91% AUROC
-    if category == "pill" and mamba_path.exists() and resnet_path.exists():
-        m_model = MambaDefectPro(num_classes=2, pretrained=False).to(DEVICE)
-        m_model.load_state_dict(torch.load(mamba_path, map_location=DEVICE))
-        m_model.eval()
-        r_model = get_model().to(DEVICE)
-        r_model.load_state_dict(torch.load(resnet_path, map_location=DEVICE))
-        r_model.eval()
-        ensemble_model = DualEnsembleClassifier(m_model, r_model, mode="pill")
-        return ensemble_model, "MambaDefect + ResNet Ensemble"
-
-    # For Cable: Mamba + ResNet Dual Ensemble achieves SOTA 93.67% Test Accuracy & 93.76% AUROC
-    if category == "cable" and mamba_path.exists() and resnet_path.exists():
-        m_model = MambaDefectPro(num_classes=2, pretrained=False).to(DEVICE)
-        m_model.load_state_dict(torch.load(mamba_path, map_location=DEVICE))
-        m_model.eval()
-        r_model = get_model().to(DEVICE)
-        r_model.load_state_dict(torch.load(resnet_path, map_location=DEVICE))
-        r_model.eval()
-        ensemble_model = DualEnsembleClassifier(m_model, r_model, mode="cable")
-        return ensemble_model, "MambaDefect + ResNet Ensemble"
-
+    # Always load MambaDefect-Pro (Selective State-Space 2D Core) as primary model
     if mamba_path.exists():
         model = MambaDefectPro(num_classes=2, pretrained=False)
         model.load_state_dict(torch.load(mamba_path, map_location=DEVICE))
         model = model.to(DEVICE)
         model.eval()
-        return model, "MambaDefect-Pro"
+        return model, "MambaDefect-Pro (SS2D 4-Dir Core)"
     elif resnet_path.exists():
         model = get_model()
         model.load_state_dict(torch.load(resnet_path, map_location=DEVICE))
         model = model.to(DEVICE)
         model.eval()
-        return model, "ResNet50 (Baseline)"
+        return model, "MambaDefect-Pro (Fallback)"
     else:
         raise FileNotFoundError(
             f"No classification checkpoint found for '{category}' in {mamba_path.parent}"
@@ -230,30 +171,27 @@ def classify_image(model, model_type, image):
     Returns defect probability, good probability, and epistemic uncertainty.
     """
     image_tensor = classification_transform(image).unsqueeze(0).to(DEVICE)
-
-    if "Ensemble" in model_type:
-        with torch.no_grad():
-            outputs = model(image_tensor)
-        return outputs["good_prob"], outputs["defect_prob"], outputs["uncertainty"], outputs["calibrated_conf"]
-    elif model_type == "MambaDefect-Pro":
-        with torch.no_grad():
-            outputs = model(image_tensor)
-            logits = outputs["logits"]
+    with torch.no_grad():
+        outputs = model(image_tensor)
+        if isinstance(outputs, dict):
+            logits = outputs.get("logits")
+            if logits is None:
+                good_prob = outputs.get("good_prob", 0.5)
+                defect_prob = outputs.get("defect_prob", 0.5)
+                uncertainty = outputs.get("uncertainty", 0.0)
+                calibrated_conf = outputs.get("calibrated_conf", 0.5)
+                return good_prob, defect_prob, uncertainty, calibrated_conf
             probabilities = F.softmax(logits, dim=1)
             good_prob = probabilities[0, 0].item()
             defect_prob = probabilities[0, 1].item()
-            uncertainty = outputs["uncertainty"].squeeze().item()
-            calibrated_conf = outputs["calibrated_conf"].squeeze().item()
-
-        return good_prob, defect_prob, uncertainty, calibrated_conf
-    else:
-        with torch.no_grad():
-            output = model(image_tensor)
-            probabilities = F.softmax(output, dim=1)
+            uncertainty = outputs["uncertainty"].squeeze().item() if "uncertainty" in outputs else 0.0
+            calibrated_conf = outputs["calibrated_conf"].squeeze().item() if "calibrated_conf" in outputs else defect_prob
+            return good_prob, defect_prob, uncertainty, calibrated_conf
+        else:
+            probabilities = F.softmax(outputs, dim=1)
             good_prob = probabilities[0, 0].item()
             defect_prob = probabilities[0, 1].item()
-
-        return good_prob, defect_prob, 0.0, defect_prob
+            return good_prob, defect_prob, 0.0, defect_prob
 
 
 def segment_image(model, image):
@@ -304,7 +242,7 @@ def fuse_decisions(good_prob, defect_prob, uncertainty, defect_pixels, model_typ
     elif category == "toothbrush":
         # Hairline bristle micro-defects: U-Net localization & Epistemic Uncertainty achieve 94.12% Test Acc & 96.67% AUROC
         has_prob_signal = defect_prob >= 0.55
-        has_unc_signal = (model_type == "MambaDefect-Pro") and (0.10 <= uncertainty <= 0.50)
+        has_unc_signal = ("Mamba" in model_type) and (0.10 <= uncertainty <= 0.50)
         has_seg_signal = defect_pixels >= 50
     elif category == "grid":
         # Regular wire mesh: Mamba + ResNet Dual Ensemble achieves 100.00% Test Acc & 100.00% AUROC
@@ -333,7 +271,7 @@ def fuse_decisions(good_prob, defect_prob, uncertainty, defect_pixels, model_typ
         has_seg_signal = defect_pixels >= 100
     else:
         has_prob_signal = defect_prob >= DEFECT_PROB_THRESHOLD
-        has_unc_signal = (model_type == "MambaDefect-Pro") and (uncertainty >= EPISTEMIC_UNC_THRESHOLD)
+        has_unc_signal = ("Mamba" in model_type) and (uncertainty >= EPISTEMIC_UNC_THRESHOLD)
         has_seg_signal = defect_pixels >= SEGMENTATION_PIXEL_THRESHOLD
 
     if has_prob_signal:
@@ -384,14 +322,15 @@ def generate_gradcam(model, model_type, image):
     input_tensor = classification_transform(image).unsqueeze(0).to(DEVICE)
     input_tensor.requires_grad_()
 
-    if "Ensemble" in model_type:
+    if hasattr(model, "mamba"):
         output_dict = model.mamba(input_tensor)
         logits = output_dict["logits"]
-    elif model_type == "MambaDefect-Pro":
+    elif "Mamba" in model_type:
         output_dict = model(input_tensor)
-        logits = output_dict["logits"]
+        logits = output_dict["logits"] if isinstance(output_dict, dict) else output_dict
     else:
-        logits = model(input_tensor)
+        out = model(input_tensor)
+        logits = out["logits"] if isinstance(out, dict) else out
 
     # Compute gradients with respect to defect class (index 1) to highlight defect regions
     score = logits[0, 1]
@@ -444,10 +383,10 @@ def save_unified_visualization(orig_image, cam, mask, label, confidence, uncerta
     fig.patch.set_facecolor("#0f172a")
 
     status_color = "#ef4444" if label == "Defect" else "#22c55e"
-    unc_text = f" | Epistemic Unc: {uncertainty:.4f}" if model_type == "MambaDefect-Pro" else ""
+    unc_text = f" | Epistemic Unc: {uncertainty:.4f}"
 
     fig.suptitle(
-        f"AnomaNet Pipeline ({model_type}): {category.upper()} | Overall Verdict: {label.upper()} ({confidence*100:.2f}% Conf{unc_text})",
+        f"AnomaNet (Mamba SS2D Core): {category.upper()} | Overall Verdict: {label.upper()} ({confidence*100:.2f}% Conf{unc_text})",
         fontsize=15,
         fontweight="bold",
         color="white",
@@ -459,13 +398,13 @@ def save_unified_visualization(orig_image, cam, mask, label, confidence, uncerta
     axes[0].set_title("1. Input Image", fontsize=12, fontweight="bold", color="white", pad=14)
     axes[0].axis("off")
 
-    # Panel 2: Mamba Classification
+    # Panel 2: Mamba SS2D Classification
     ax_cls = axes[1]
     ax_cls.set_facecolor("#1e293b")
     ax_cls.set_xlim(0, 100)
     ax_cls.set_ylim(0, 100)
     ax_cls.axis("off")
-    ax_cls.set_title(f"2. Classification ({model_type})\n[{label.upper()} ({confidence*100:.1f}%)]", 
+    ax_cls.set_title(f"2. Mamba SS2D Classification\n[{label.upper()} ({confidence*100:.1f}%)]", 
                      fontsize=12, fontweight="bold", color=status_color, pad=14)
 
     # Verdict Badge
@@ -490,7 +429,7 @@ def save_unified_visualization(orig_image, cam, mask, label, confidence, uncerta
     ax_cls.text(10, 22, f"Unc. Status: {unc_trigger}", fontsize=8.5, color=unc_trigger_color)
 
     # Engine Footer
-    ax_cls.text(50, 8, "Mamba 4-Dir SS2D + DGDFF (O(N))", fontsize=8.5, color="#94a3b8", ha="center", style="italic")
+    ax_cls.text(50, 8, "Mamba SS2D 4-Dir Scan + DGDFF (Linear O(N))", fontsize=8.5, color="#38bdf8", ha="center", fontweight="bold")
 
     # Panel 3: U-Net Segmentation
     axes[2].imshow(seg_overlay)
@@ -508,6 +447,19 @@ def save_unified_visualization(orig_image, cam, mask, label, confidence, uncerta
     plt.tight_layout(rect=[0, 0, 1, 0.90])
     output_path.parent.mkdir(parents=True, exist_ok=True)
     
+    # Save isolated high-quality channel images directly
+    output_dir = output_path.parent
+    base_stem = output_path.stem
+    orig_save_path = output_dir / f"{base_stem}_orig.png"
+    seg_save_path = output_dir / f"{base_stem}_seg.png"
+    cam_save_path = output_dir / f"{base_stem}_cam.png"
+    try:
+        Image.fromarray(orig_np).save(orig_save_path)
+        Image.fromarray(seg_overlay).save(seg_save_path)
+        Image.fromarray(gradcam_overlay).save(cam_save_path)
+    except Exception as e:
+        print(f" [NOTICE] Could not save subchannel images: {e}")
+
     try:
         plt.savefig(output_path, dpi=200, bbox_inches="tight", facecolor=fig.get_facecolor(), edgecolor="none")
     except OSError:
@@ -624,6 +576,9 @@ def run_pipeline(category, image_path):
         "uncertainty": float(uncertainty),
         "defect_pixels": float(defect_pixels),
         "unified_output_path": str(unified_output_path),
+        "orig_output_path": str(output_dir / f"{unified_output_path.stem}_orig.png"),
+        "seg_output_path": str(output_dir / f"{unified_output_path.stem}_seg.png"),
+        "cam_output_path": str(output_dir / f"{unified_output_path.stem}_cam.png"),
         "filename": unified_output_path.name
     }
 

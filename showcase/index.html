@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ANOMANET — AI-Powered Industrial Surface Inspection</title>
-  <link rel="stylesheet" href="styles.css?t=1795030000">
+  <link rel="stylesheet" href="styles.css?t=1795035000">
 </head>
 <body class="anomanet-console">
   <!-- Top Command Header -->
@@ -20,6 +20,10 @@
     </div>
 
     <div class="header-status-group">
+      <div class="engine-badge-pill">
+        <span class="engine-dot"></span>
+        <span class="engine-text">CORE: MAMBA SS2D (O(N))</span>
+      </div>
       <div class="status-indicator-pill">
         <span class="indicator-dot"></span>
         <span id="systemStatusText" class="status-text">SYSTEM READY</span>
@@ -71,7 +75,10 @@
 
         <!-- Specimen Category Dropdown -->
         <div class="field-group">
-          <label for="categorySelect" class="field-label">SPECIMEN CATEGORY</label>
+          <div class="field-label-row">
+            <label for="categorySelect" class="field-label">SPECIMEN CATEGORY</label>
+            <span id="autoDetectBadge" class="auto-badge" style="display: none;">AUTO-DETECTED</span>
+          </div>
           <select id="categorySelect" class="field-select">
             <option value="tile">Tile (Ceramic Surface)</option>
             <option value="bottle">Bottle (Glass Surface)</option>
@@ -225,6 +232,10 @@
         <!-- Detailed Metrics Grid (Revealed only after real inspection) -->
         <div class="metrics-grid" id="metricsGrid" style="display: none;">
           <div class="metric-card">
+            <span class="m-label">AI MODEL ARCHITECTURE</span>
+            <span class="m-val highlight-mamba" id="valModelCore">Mamba SS2D (O(N))</span>
+          </div>
+          <div class="metric-card">
             <span class="m-label">DEFECT AREA</span>
             <span class="m-val" id="valDefectArea">--</span>
           </div>
@@ -264,6 +275,6 @@
     </div>
   </footer>
 
-  <script src="app.js?t=1795030000"></script>
+  <script src="app.js?t=1795035000"></script>
 </body>
 </html>

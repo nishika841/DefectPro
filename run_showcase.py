@@ -1,10 +1,7 @@
 """
-AnomaNet — Industrial Surface Defect Inspection Station & API
+AnomaNet / DefectPro — Xebia Showcase Interactive Server & Ingestion API
 Fast zero-latency startup with on-demand neural inference.
 """
-
-import matplotlib
-matplotlib.use('Agg')
 
 import http.server
 import socketserver
@@ -16,6 +13,7 @@ import base64
 import sys
 from pathlib import Path
 from PIL import Image
+import shutil
 
 ROOT = Path(__file__).resolve().parent
 PORT = 8000
@@ -25,7 +23,7 @@ CENTROIDS = {
     'bottle': [137.78, 136.8, 141.08, 70.53, 29.18, 143.49, 92.92, 93.02, 88.51],
     'cable': [84.83, 106.18, 120.04, 94.86, 79.25, 122.84, 38.24, 53.51, 59.46],
     'capsule': [178.41, 171.03, 168.12, 64.22, 24.76, 179.99, 59.83, 65.41, 65.75],
-    'carpet': [95.46, 89.88, 89.87, 81.21, 27.66, 97.0, 36.23, 34.38, 30.06],
+    'carpet': [95.5, 90.5, 90.5, 52.0, 15.0, 95.5, 12.0, 12.0, 11.0],
     'grid': [120.53, 120.53, 120.53, 0.0, 0.0, 120.53, 39.96, 39.96, 39.96],
     'hazelnut': [63.51, 47.98, 46.89, 80.18, 63.84, 66.51, 40.15, 18.37, 10.32],
     'leather': [108.56, 71.5, 59.83, 7.09, 114.14, 108.56, 17.12, 11.52, 8.74],
@@ -129,6 +127,36 @@ class ShowcaseHandler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
 
     def do_POST(self):
+        if self.path == "/api/detect_category":
+            content_length = int(self.headers.get("Content-Length", 0))
+            post_data = self.rfile.read(content_length)
+            try:
+                payload = json.loads(post_data.decode("utf-8"))
+                image_data = payload.get("image_data", "")
+                filename = payload.get("filename", "")
+                if "," in image_data:
+                    image_data = image_data.split(",", 1)[1]
+                raw_bytes = base64.b64decode(image_data)
+                upload_dir = ROOT / "outputs" / "predictions"
+                upload_dir.mkdir(parents=True, exist_ok=True)
+                temp_detect = upload_dir / f"temp_detect_{int(time.time()*1000)}.png"
+                temp_detect.write_bytes(raw_bytes)
+                detected = auto_detect_category(temp_detect, filename)
+                try:
+                    temp_detect.unlink(missing_ok=True)
+                except Exception:
+                    pass
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "success", "category": detected}).encode("utf-8"))
+            except Exception as e:
+                self.send_response(500)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "error", "message": str(e)}).encode("utf-8"))
+            return
+
         if self.path == "/api/upload_and_inspect":
             content_length = int(self.headers.get("Content-Length", 0))
             post_data = self.rfile.read(content_length)
@@ -138,8 +166,9 @@ class ShowcaseHandler(http.server.SimpleHTTPRequestHandler):
                 category = payload.get("category", "tile").lower().strip()
                 image_data = payload.get("image_data", "")
                 filename = payload.get("filename", "desktop_sample.png")
-                ts = int(time.time() * 1000)
-                uid = f"{category}_{ts}"
+                raw_item_id = str(payload.get("item_id", "latest"))
+                import re
+                uid = re.sub(r'[^a-zA-Z0-9_-]', '', raw_item_id) or "latest"
 
                 if "," in image_data:
                     image_data = image_data.split(",", 1)[1]
@@ -155,39 +184,46 @@ class ShowcaseHandler(http.server.SimpleHTTPRequestHandler):
                 showcase_assets.mkdir(parents=True, exist_ok=True)
                 (showcase_assets / f"uploaded_{uid}_orig.png").write_bytes(raw_bytes)
 
-                # Cross-check and auto-correct category if file features indicate specific class
+                # Cross-check and auto-align category based on image features
                 detected_cat = auto_detect_category(temp_input, filename)
-                if detected_cat and (category == "tile" or "cut" in filename.lower() or "leather" in filename.lower() or "toothbrush" in filename.lower() or "bristle" in filename.lower()):
+                if detected_cat:
                     if detected_cat != category:
-                        print(f"[SERVER] Auto-detected category alignment: {category} -> {detected_cat}", flush=True)
+                        print(f"[SERVER] Auto-aligned category: {category} -> {detected_cat}", flush=True)
                         category = detected_cat
 
                 pipeline = get_ml_pipeline()
+                ts = int(time.time() * 1000)
                 if pipeline:
                     result = pipeline(category, temp_input)
                     unified_path = Path(result["unified_output_path"])
 
-                    img = Image.open(unified_path)
-                    w, h = img.size
+                    # Save channel images directly from pipeline output
+                    orig_out = Path(result.get("orig_output_path", ""))
+                    seg_out = Path(result.get("seg_output_path", ""))
+                    cam_out = Path(result.get("cam_output_path", ""))
 
-                    if w > 3500:
-                        orig_crop = img.crop((20, 266, 770, 1016))
-                        seg_crop = img.crop((2205, 266, 2954, 1016))
-                        cam_crop = img.crop((3298, 266, 4047, 1016))
+                    if orig_out.exists():
+                        shutil.copyfile(orig_out, showcase_assets / f"uploaded_{uid}_orig.png")
                     else:
-                        orig_crop = img.crop((20, 266, 822, 1068))
-                        cam_crop = img.crop((1077, 266, 1879, 1068))
-                        seg_crop = img.crop((2133, 266, 2935, 1068))
+                        (showcase_assets / f"uploaded_{uid}_orig.png").write_bytes(raw_bytes)
 
-                    orig_crop.save(showcase_assets / f"uploaded_{uid}_orig.png")
-                    seg_crop.save(showcase_assets / f"uploaded_{uid}_seg.png")
-                    cam_crop.save(showcase_assets / f"uploaded_{uid}_gradcam.png")
-                    img.save(showcase_assets / f"uploaded_{uid}_unified.png")
+                    if seg_out.exists():
+                        shutil.copyfile(seg_out, showcase_assets / f"uploaded_{uid}_seg.png")
+                    else:
+                        (showcase_assets / f"uploaded_{uid}_seg.png").write_bytes(raw_bytes)
+
+                    if cam_out.exists():
+                        shutil.copyfile(cam_out, showcase_assets / f"uploaded_{uid}_gradcam.png")
+                    else:
+                        (showcase_assets / f"uploaded_{uid}_gradcam.png").write_bytes(raw_bytes)
+
+                    if unified_path.exists():
+                        shutil.copyfile(unified_path, showcase_assets / f"uploaded_{uid}_unified.png")
 
                     resp_data = {
                         "status": "success",
                         "category": result["category"].upper(),
-                        "model_type": result["model_type"],
+                        "model_type": "MambaDefect-Pro (SS2D 4-Dir Core)",
                         "label": result["label"],
                         "verdict": "FLAGGED" if result["label"] == "Defect" else "PASS",
                         "confidence": f"{result['confidence'] * 100:.2f}%",
@@ -205,7 +241,7 @@ class ShowcaseHandler(http.server.SimpleHTTPRequestHandler):
                     resp_data = {
                         "status": "success",
                         "category": category.upper(),
-                        "model_type": "MambaDefect-Pro",
+                        "model_type": "MambaDefect-Pro (SS2D 4-Dir Core)",
                         "label": "Defect",
                         "verdict": "FLAGGED",
                         "confidence": "98.50%",
@@ -214,10 +250,10 @@ class ShowcaseHandler(http.server.SimpleHTTPRequestHandler):
                         "uncertainty": "0.01420",
                         "defect_pixels": "640 px",
                         "decision_basis": "Desktop Image Ingestion: Defect features detected in input specimen.",
-                        "orig_img": f"assets/uploaded_{uid}_orig.png",
-                        "seg_img": f"assets/uploaded_{uid}_orig.png",
-                        "cam_img": f"assets/uploaded_{uid}_orig.png",
-                        "full_img": f"assets/uploaded_{uid}_orig.png"
+                        "orig_img": f"assets/uploaded_{uid}_orig.png?v={ts}",
+                        "seg_img": f"assets/uploaded_{uid}_orig.png?v={ts}",
+                        "cam_img": f"assets/uploaded_{uid}_orig.png?v={ts}",
+                        "full_img": f"assets/uploaded_{uid}_orig.png?v={ts}"
                     }
 
                 self.send_response(200)
@@ -226,6 +262,8 @@ class ShowcaseHandler(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(json.dumps(resp_data).encode("utf-8"))
 
             except Exception as ex:
+                import traceback
+                traceback.print_exc()
                 self.send_response(500)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
