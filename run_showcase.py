@@ -1,5 +1,5 @@
 """
-AnomaNet / DefectPro — Xebia Showcase Interactive Server & Ingestion API
+AnomaNet — Industrial Surface Defect Inspection Station & API
 Fast zero-latency startup with on-demand neural inference.
 """
 
@@ -238,7 +238,7 @@ def open_browser():
 if __name__ == "__main__":
     socketserver.TCPServer.allow_reuse_address = True
     print("=" * 65, flush=True)
-    print("      ANOMANET INDUSTRIAL INSPECTION STATION (XEBIA SHOWCASE)", flush=True)
+    print("      ANOMANET INDUSTRIAL SURFACE INSPECTION STATION", flush=True)
     print("=" * 65, flush=True)
     print(f" [ONLINE] Local Station URL : http://localhost:{PORT}/showcase/index.html", flush=True)
     print(f" [API]    Desktop Ingestion : http://localhost:{PORT}/api/upload_and_inspect", flush=True)
