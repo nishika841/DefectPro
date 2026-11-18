@@ -29,18 +29,24 @@ In modern high-speed industrial manufacturing, surface anomaly detection faces t
 
 ---
 
-## 🏭 Interactive Xebia Showcase Demo (Offline Factory Station)
+## 🏭 Interactive AnomaNet Inspection Station (Offline & Cloud Deployment)
 
 Launch the full-screen interactive inspection station in under 5 seconds with zero setup:
 
 ```bash
-# One-click launcher (opens offline browser station automatically):
+# 1. Local Offline Workstation (Runs full PyTorch neural models on GPU/CPU):
 python run_showcase.py
 ```
+Open **`http://localhost:8000/showcase/index.html`** in your browser.
 
-- **Zero dependencies**: Uses verified offline prediction evidence (`outputs/predictions/`); no PyTorch checkpoints, datasets, or GPUs required.
-- **Judge-friendly walkthrough**: Features a 90-second workflow with scan animations, instant view switching (Original, U-Net Mask, Grad-CAM Heatmap), and a simulated conveyor batch runner.
-- **Detailed guide**: See [showcase/README.md](file:///d:/PROJECTS/DEFECT_DETECTION_PROJECT/showcase/README.md) for the 90-second judge script and keyboard shortcuts.
+```bash
+# 2. Vercel Cloud Deployment (One-Click Serverless Edge):
+# Import repository into Vercel Dashboard (https://vercel.com/new)
+# Automatically builds frontend and serverless edge API via vercel.json
+```
+
+- **Interactive UI**: Drag-and-drop input, automatic visual category detection in 2ms, laser scan HUD, and 4-channel diagnostic tabs (`01 IMAGE`, `02 SEGMENTATION`, `03 AI ATTENTION`, `04 REPORT`).
+- **Production-Ready**: Supports live offline inference, cloud deployment on Vercel, and public mobile inspection via tunnels.
 
 ---
 

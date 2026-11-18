@@ -67,4 +67,9 @@ desktop.ini
 *.log
 task-*.log
 outputs/augmented/
+outputs/predictions/temp_*
+outputs/predictions/*temp*
+showcase/assets/uploaded_*
+showcase/assets/check_*
+showcase/assets/test_*
 
