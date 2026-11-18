@@ -119,6 +119,9 @@ class ShowcaseHandler(http.server.SimpleHTTPRequestHandler):
                 category = payload.get("category", "tile").lower().strip()
                 image_data = payload.get("image_data", "")
                 filename = payload.get("filename", "desktop_sample.png")
+                raw_item_id = str(payload.get("item_id", "latest"))
+                import re
+                uid = re.sub(r'[^a-zA-Z0-9_-]', '', raw_item_id) or "latest"
 
                 if "," in image_data:
                     image_data = image_data.split(",", 1)[1]
@@ -127,12 +130,12 @@ class ShowcaseHandler(http.server.SimpleHTTPRequestHandler):
 
                 upload_dir = ROOT / "outputs" / "predictions"
                 upload_dir.mkdir(parents=True, exist_ok=True)
-                temp_input = upload_dir / "temp_desktop_input.png"
+                temp_input = upload_dir / f"temp_{uid}.png"
                 temp_input.write_bytes(raw_bytes)
 
                 showcase_assets = ROOT / "showcase" / "assets"
                 showcase_assets.mkdir(parents=True, exist_ok=True)
-                (showcase_assets / "uploaded_latest_orig.png").write_bytes(raw_bytes)
+                (showcase_assets / f"uploaded_{uid}_orig.png").write_bytes(raw_bytes)
 
                 # Cross-check and auto-correct category if file features indicate specific class
                 detected_cat = auto_detect_category(temp_input, filename)
@@ -158,10 +161,10 @@ class ShowcaseHandler(http.server.SimpleHTTPRequestHandler):
                         cam_crop = img.crop((1077, 266, 1879, 1068))
                         seg_crop = img.crop((2133, 266, 2935, 1068))
 
-                    orig_crop.save(showcase_assets / "uploaded_latest_orig.png")
-                    seg_crop.save(showcase_assets / "uploaded_latest_seg.png")
-                    cam_crop.save(showcase_assets / "uploaded_latest_gradcam.png")
-                    img.save(showcase_assets / "uploaded_latest_unified.png")
+                    orig_crop.save(showcase_assets / f"uploaded_{uid}_orig.png")
+                    seg_crop.save(showcase_assets / f"uploaded_{uid}_seg.png")
+                    cam_crop.save(showcase_assets / f"uploaded_{uid}_gradcam.png")
+                    img.save(showcase_assets / f"uploaded_{uid}_unified.png")
 
                     resp_data = {
                         "status": "success",
@@ -175,10 +178,10 @@ class ShowcaseHandler(http.server.SimpleHTTPRequestHandler):
                         "uncertainty": f"{result['uncertainty']:.5f}",
                         "defect_pixels": f"{result['defect_pixels']:.0f} px",
                         "decision_basis": result["decision_details"],
-                        "orig_img": "assets/uploaded_latest_orig.png",
-                        "seg_img": "assets/uploaded_latest_seg.png",
-                        "cam_img": "assets/uploaded_latest_gradcam.png",
-                        "full_img": "assets/uploaded_latest_unified.png"
+                        "orig_img": f"assets/uploaded_{uid}_orig.png",
+                        "seg_img": f"assets/uploaded_{uid}_seg.png",
+                        "cam_img": f"assets/uploaded_{uid}_gradcam.png",
+                        "full_img": f"assets/uploaded_{uid}_unified.png"
                     }
                 else:
                     resp_data = {
@@ -193,10 +196,10 @@ class ShowcaseHandler(http.server.SimpleHTTPRequestHandler):
                         "uncertainty": "0.01420",
                         "defect_pixels": "640 px",
                         "decision_basis": "Desktop Image Ingestion: Defect features detected in input specimen.",
-                        "orig_img": "assets/uploaded_latest_orig.png",
-                        "seg_img": "assets/uploaded_latest_orig.png",
-                        "cam_img": "assets/uploaded_latest_orig.png",
-                        "full_img": "assets/uploaded_latest_orig.png"
+                        "orig_img": f"assets/uploaded_{uid}_orig.png",
+                        "seg_img": f"assets/uploaded_{uid}_orig.png",
+                        "cam_img": f"assets/uploaded_{uid}_orig.png",
+                        "full_img": f"assets/uploaded_{uid}_orig.png"
                     }
 
                 self.send_response(200)
