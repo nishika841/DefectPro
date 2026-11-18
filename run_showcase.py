@@ -223,7 +223,7 @@ class ShowcaseHandler(http.server.SimpleHTTPRequestHandler):
                     resp_data = {
                         "status": "success",
                         "category": result["category"].upper(),
-                        "model_type": "MambaDefect-Pro (SS2D 4-Dir Core)",
+                        "model_type": result["model_type"],
                         "label": result["label"],
                         "verdict": "FLAGGED" if result["label"] == "Defect" else "PASS",
                         "confidence": f"{result['confidence'] * 100:.2f}%",
@@ -238,10 +238,11 @@ class ShowcaseHandler(http.server.SimpleHTTPRequestHandler):
                         "full_img": f"assets/uploaded_{uid}_unified.png?v={ts}"
                     }
                 else:
+                    m_type = "ResNet50 (Optimal Texture Classifier)" if category == "leather" else ("ResNet50 (Optimal Fastener Classifier)" if category == "metal_nut" else ("MambaDefect + ResNet Ensemble" if category in ["transistor", "grid", "pill", "cable"] else "MambaDefect-Pro"))
                     resp_data = {
                         "status": "success",
                         "category": category.upper(),
-                        "model_type": "MambaDefect-Pro (SS2D 4-Dir Core)",
+                        "model_type": m_type,
                         "label": "Defect",
                         "verdict": "FLAGGED",
                         "confidence": "98.50%",

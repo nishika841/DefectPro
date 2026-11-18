@@ -905,14 +905,14 @@ body.anomanet-console {
 }
 
 .main-viewer-img {
-  width: 100%;
-  height: 100%;
   max-width: 100%;
   max-height: 100%;
+  width: auto;
+  height: auto;
   object-fit: contain;
   border-radius: var(--radius-sm);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.75);
-  border: 1px solid rgba(255, 106, 26, 0.35);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--border-subtle);
   display: block;
 }
 
