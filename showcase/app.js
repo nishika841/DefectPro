@@ -377,8 +377,8 @@
     DOM.valLatency.textContent = data.latencyText;
     DOM.valDecisionBasis.textContent = data.decision_basis;
 
-    // 4. Update Current Active View
-    switchView(AppState.activeView);
+    // 4. Automatically advance to next slide (02 SEGMENTATION) upon decision completion
+    switchView('seg');
 
     // 5. Header Status
     DOM.systemStatusText.textContent = `INSPECTION COMPLETE • ${isDefect ? 'DEFECT DETECTED' : 'PASS'}`;
