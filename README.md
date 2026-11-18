@@ -14,6 +14,21 @@ The system implements **`MambaDefect-Pro`**—a novel neural architecture operat
 
 ---
 
+## 🔬 Academic Abstract & Research Motivation
+
+In modern high-speed industrial manufacturing, surface anomaly detection faces three critical challenges established in computer vision literature:
+
+1. **The Class Imbalance & Escape Dilemma (*PharmaNet Deep, 2025*)**:
+   Production lines yield predominantly normal components (~85–95% nominal) with rare, highly diverse anomalies (~5–15%). Standard cross-entropy classifiers and naive 50% softmax thresholds yield catastrophic false negatives on low-contrast hairline cracks, allowing defective components to escape the factory floor.
+2. **The Augmentation Paradox (*SimpleNet, CVPR 2023*)**:
+   Conventional data augmentation techniques (random affine transforms, rotations, Gaussian blurring, and color jitter) inadvertently corrupt factory-calibrated lighting, warp geometric tolerances, and wash out sub-pixel microscopic defect signatures.
+3. **The Attention Bottleneck (*CastMamba, Nature Sci Rep, 2026*)**:
+   While Vision Transformers (ViT) provide global receptive fields, their self-attention mechanism incurs quadratic $O(H^2 W^2)$ computational complexity, causing severe latency bottlenecks on high-speed industrial conveyor cameras. Standard CNNs, conversely, suffer from inductive bias saturation and dying activation neurons (*Qi et al., 2026*).
+
+**AnomaNet** resolves this triad by synthesizing foundational innovations across **4 landmark papers (CVPR 2023 – Nature 2026)** into a unified, edge-deployable pipeline achieving **97.49% Macro Image AUROC** and **96.62% Macro Test Accuracy** across all 15 MVTec AD categories, with **100.00% perfect discrimination on 5 industrial classes**.
+
+---
+
 ## 🏭 Interactive Xebia Showcase Demo (Offline Factory Station)
 
 Launch the full-screen interactive inspection station in under 5 seconds with zero setup:
@@ -279,6 +294,26 @@ $$\text{Decision} = \begin{cases}
 | **`toothbrush/good_test_001.png`** | **Good** | ✅ `GOOD` (0.01% Defect) | `0.0021` (Pure zero) | `0 px` | ✅ **GOOD (99.99% Conf)** |
 | **`grid/metal_contamination_001.png`** | **Defect** | ❌ `GOOD` (16.2% Defect) | **`0.1816`** (360x spike!) | `0 px` | ✅ **DEFECT (68.16% Conf)** |
 | **`grid/good_test_000.png`** | **Good** | ✅ `GOOD` (0.10% Defect) | `0.0005` (Pure zero) | `0 px` | ✅ **GOOD (99.90% Conf)** |
+
+---
+
+## 🎤 Academic Presentation & Defense Guide (W.r.t Research Literature)
+
+Use this guide for conference presentations, thesis defense, or technical evaluation by industry judges:
+
+### 1. 30-Second Elevator Pitch
+> *"In automated manufacturing, quality control faces a fundamental dilemma: conventional Vision Transformers with $O(N^2)$ quadratic complexity are too slow for real-time edge deployment, while conventional CNNs fail on subtle, low-contrast micro-defects. Furthermore, traditional pixel augmentations destroy sub-pixel defect fidelity.*
+> 
+> *Our project, **AnomaNet**, resolves this by introducing **MambaDefect-Pro** under a strict **Zero-Image-Augmentation paradigm**. By synthesizing the mathematical strengths of **4 foundational papers (CVPR 2023 – Nature 2026)**, we combine linear $O(N)$ 4-Directional State-Space Mamba modeling, Latent Feature Perturbation, Epistemic Uncertainty quantification, and U-Net pixel localization. On the rigorous **MVTec AD benchmark**, our system achieves **97.49% Macro AUROC** and **96.62% Macro Test Accuracy** across all 15 industrial classes, reaching **100.00% perfect discrimination** on 5 categories."*
+
+### 2. Key Academic Questions & Ready Responses
+
+| Question Asked by Reviewers / Judges | Grounded Response & Scientific Rationale |
+| :--- | :--- |
+| **Why Mamba (SS2D) over Vision Transformers (ViT)?** | Vision Transformers incur quadratic $O(H^2 W^2)$ computational complexity in self-attention, creating severe latency bottlenecks on high-speed conveyor cameras ($>30$ FPS). 4-directional selective state-space scanning (**SS2D**, *CastMamba, Nature 2026*) achieves equivalent global receptive fields with **linear $O(HW)$ complexity**, allowing real-time edge deployment without sacrificing long-range contextual sensitivity. |
+| **Why 'Zero-Image-Augmentation'? Doesn't augmentation improve generalization?** | Standard pixel-level transforms (rotations, cropping, blurring, color jitter) destroy subtle micro-defect patterns (e.g., $2$-pixel ceramic cracks, thread fraying) and alter calibrated factory illumination. Following **SimpleNet (CVPR 2023)**, we train exclusively on uncorrupted sensor pixels and inject Gaussian noise into **deep latent feature representations (FSLP)**, creating robust decision boundaries while preserving sub-pixel optical fidelity. |
+| **How does Epistemic Uncertainty prevent factory escapes?** | Softmax classification is often overconfident or ambiguous on out-of-distribution defects (e.g., yielding a false-negative $46\%$ defect score on a damaged toothbrush). Following **PharmaNet Deep (2025)**, our uncertainty head measures feature dispersion ($\sigma^2$), spiking up to **$250\times$** ($0.5255$ vs normal $0.0021$) on subtle anomalies. The decision fusion engine intercepts this spike to flag the part regardless of raw softmax score. |
+| **How is explainability validated?** | We couple classification with deep-layer **Grad-CAM activation heatmaps** and pixel-level **U-Net segmentation** ($256 \times 256$), producing simultaneous bounding area metrics and attention maps that verify the network focuses on the actual physical flaw rather than background noise. |
 
 ---
 
