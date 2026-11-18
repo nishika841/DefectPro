@@ -1,12 +1,280 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta http-equiv="refresh" content="0; url=/showcase/index.html">
-  <script>window.location.replace("/showcase/index.html");</script>
-  <title>Redirecting to AnomaNet...</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ANOMANET — AI-Powered Industrial Surface Inspection</title>
+  <link rel="stylesheet" href="styles.css?t=1795036000">
 </head>
-<body>
-  <p>Redirecting to <a href="/showcase/index.html">AnomaNet Inspection Station</a>...</p>
+<body class="anomanet-console">
+  <!-- Top Command Header -->
+  <header class="app-header">
+    <div class="header-brand">
+      <div class="brand-logo-mark">
+        <span class="brand-pulse"></span>
+      </div>
+      <div class="brand-text-block">
+        <h1 class="brand-title">ANOMANET</h1>
+        <span class="brand-subtitle">AI-POWERED INDUSTRIAL SURFACE INSPECTION</span>
+      </div>
+    </div>
+
+    <div class="header-status-group">
+      <div class="engine-badge-pill">
+        <span class="engine-dot"></span>
+        <span class="engine-text">CORE: MAMBA SS2D (O(N))</span>
+      </div>
+      <div class="status-indicator-pill">
+        <span class="indicator-dot"></span>
+        <span id="systemStatusText" class="status-text">SYSTEM READY</span>
+      </div>
+      <div class="shortcut-pills">
+        <span class="kbd-badge">[SPACE] Inspect</span>
+        <span class="kbd-badge">[1-4] Views</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Inspection Workspace -->
+  <main class="app-layout">
+    
+    <!-- Left Control Panel: Input Sample -->
+    <aside class="sidebar-panel">
+      <div class="panel-card input-card">
+        <div class="card-header">
+          <span class="header-num">01</span>
+          <h2 class="card-title">INPUT SAMPLE</h2>
+        </div>
+
+        <!-- Large Drag-and-Drop / Upload Area -->
+        <div class="upload-area" id="uploadDropZone">
+          <input type="file" id="fileInput" accept="image/*" class="file-input-hidden">
+          <div class="upload-icon-ring">
+            <svg class="upload-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+          </div>
+          <div class="upload-primary-text">DROP IMAGE HERE</div>
+          <div class="upload-secondary-text">or click to browse</div>
+          <div class="upload-formats">Supports PNG, JPG, BMP &bull; Any industrial resolution</div>
+        </div>
+
+        <!-- Selected File Preview Card (Hidden until file selected) -->
+        <div class="file-preview-card" id="filePreviewCard" style="display: none;">
+          <div class="preview-thumb-wrap">
+            <img id="filePreviewThumb" src="" alt="Specimen Thumbnail" class="file-thumb">
+          </div>
+          <div class="file-info-col">
+            <span id="fileNameLabel" class="file-name">specimen.png</span>
+            <span id="fileSizeLabel" class="file-size">142 KB</span>
+          </div>
+          <button type="button" id="btnRemoveFile" class="btn-remove-file" title="Remove image">&times;</button>
+        </div>
+
+        <!-- Specimen Category Dropdown -->
+        <div class="field-group">
+          <div class="field-label-row">
+            <label for="categorySelect" class="field-label">SPECIMEN CATEGORY</label>
+            <span id="autoDetectBadge" class="auto-badge" style="display: none;">AUTO-DETECTED</span>
+          </div>
+          <select id="categorySelect" class="field-select">
+            <option value="tile">Tile (Ceramic Surface)</option>
+            <option value="bottle">Bottle (Glass Surface)</option>
+            <option value="cable">Cable (Industrial Wire)</option>
+            <option value="capsule">Capsule (Pharmaceutical)</option>
+            <option value="carpet">Carpet (Fabric &amp; Weave)</option>
+            <option value="grid">Grid (Metal Mesh Sheet)</option>
+            <option value="hazelnut">Hazelnut (Nut Shell)</option>
+            <option value="leather">Leather (Processed Skin)</option>
+            <option value="metal_nut">Metal Nut (Threaded Fastener)</option>
+            <option value="pill">Pill (Medical Tablet)</option>
+            <option value="screw">Screw (Industrial Fastener)</option>
+            <option value="toothbrush">Toothbrush (Bristle Cluster)</option>
+            <option value="transistor">Transistor (Semiconductor)</option>
+            <option value="wood">Wood (Timber Grain)</option>
+            <option value="zipper">Zipper (Metal &amp; Teeth)</option>
+          </select>
+        </div>
+
+        <!-- Primary Action Stack -->
+        <div class="sidebar-actions">
+          <button type="button" id="btnInspect" class="btn-primary-inspect" disabled>
+            <span class="btn-spinner" id="btnSpinner" style="display: none;"></span>
+            <span class="btn-text" id="btnInspectText">INSPECT SAMPLE &rarr;</span>
+            <span class="btn-hotkey">[SPACE]</span>
+          </button>
+          <button type="button" id="btnReset" class="btn-secondary-reset">
+            <span class="reset-icon">&#8634;</span> Reset
+          </button>
+        </div>
+
+        <!-- Clear Visual Workflow Guide for Evaluators -->
+        <div class="workflow-guide-box">
+          <div class="guide-title">INSPECTION WORKFLOW</div>
+          <div class="guide-steps-list">
+            <div class="guide-step-item">
+              <span class="step-badge">1</span>
+              <span class="step-label">Upload Surface Image</span>
+            </div>
+            <div class="guide-step-item">
+              <span class="step-badge">2</span>
+              <span class="step-label">Execute AI Neural Inspection</span>
+            </div>
+            <div class="guide-step-item">
+              <span class="step-badge">3</span>
+              <span class="step-label">Analyze Segmentation &amp; Attention</span>
+            </div>
+            <div class="guide-step-item">
+              <span class="step-badge">4</span>
+              <span class="step-label">Examine Autonomous AI Decision</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </aside>
+
+    <!-- Center/Right Main Stage: Large Image Viewer & Results -->
+    <section class="stage-section">
+      
+      <!-- Step-Based Analysis Navigation Tabs -->
+      <nav class="analysis-steps-bar" role="tablist">
+        <button type="button" class="step-tab active" data-view="orig" id="tabOrig">
+          <span class="step-code">01</span>
+          <span class="step-title">IMAGE</span>
+        </button>
+        <button type="button" class="step-tab" data-view="seg" id="tabSeg">
+          <span class="step-code">02</span>
+          <span class="step-title">SEGMENTATION</span>
+        </button>
+        <button type="button" class="step-tab" data-view="cam" id="tabCam">
+          <span class="step-code">03</span>
+          <span class="step-title">AI ATTENTION</span>
+        </button>
+        <button type="button" class="step-tab" data-view="full" id="tabFull">
+          <span class="step-code">04</span>
+          <span class="step-title">REPORT</span>
+        </button>
+      </nav>
+
+      <!-- Large Centered Optical Viewer Stage -->
+      <div class="viewer-stage" id="viewerStage">
+        <!-- Precision Technical Reticle Corners -->
+        <div class="stage-reticle top-left"></div>
+        <div class="stage-reticle top-right"></div>
+        <div class="stage-reticle bottom-left"></div>
+        <div class="stage-reticle bottom-right"></div>
+        <div class="stage-crosshairs"></div>
+
+        <!-- Scanning Laser Line Overlay -->
+        <div class="laser-scanner" id="laserScanner">
+          <div class="laser-line"></div>
+          <div class="laser-sweep"></div>
+        </div>
+
+        <!-- In-Progress Scanning HUD -->
+        <div class="scan-progress-hud" id="scanProgressHud" style="display: none;">
+          <div class="hud-spinner"></div>
+          <div class="hud-main-text">NEURAL INFERENCE IN PROGRESS</div>
+          <div class="hud-sub-text" id="hudSubText">Executing 4-directional SS2D state space scan...</div>
+        </div>
+
+        <!-- Empty Initial State (No sample preloaded) -->
+        <div class="viewer-empty-state" id="viewerEmptyState">
+          <div class="empty-icon-circle">
+            <svg class="empty-aperture-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="14.31" y1="8" x2="20.05" y2="17.94"></line>
+              <line x1="9.69" y1="8" x2="21.17" y2="8"></line>
+              <line x1="7.38" y1="12" x2="13.12" y2="2.06"></line>
+              <line x1="9.69" y1="16" x2="3.95" y2="6.06"></line>
+              <line x1="14.31" y1="16" x2="2.83" y2="16"></line>
+              <line x1="16.62" y1="12" x2="10.88" y2="21.94"></line>
+            </svg>
+          </div>
+          <h3 class="empty-heading">READY FOR INSPECTION</h3>
+          <p class="empty-subtext">Upload an industrial surface image to begin AI-powered analysis.</p>
+        </div>
+
+        <!-- Active Specimen Image Display Wrap -->
+        <div class="viewer-image-wrap" id="viewerImageWrap" style="display: none;">
+          <img id="mainViewerImg" src="" alt="Specimen Inspection Canvas" class="main-viewer-img">
+        </div>
+
+        <!-- Floating Active Channel Tag -->
+        <div class="viewer-channel-tag" id="viewerChannelTag" style="display: none;">
+          01 ORIGINAL IMAGE
+        </div>
+      </div>
+
+      <!-- Prominent Inspection Result & Telemetry Card -->
+      <div class="result-deck" id="resultDeck">
+        
+        <!-- Big Verdict Bar -->
+        <div class="verdict-bar ready" id="verdictBar">
+          <div class="verdict-left">
+            <div class="verdict-icon" id="verdictIcon">&#9675;</div>
+            <div class="verdict-text-block">
+              <span class="verdict-kicker">INSPECTION RESULT</span>
+              <span class="verdict-title" id="verdictTitle">READY FOR INSPECTION</span>
+            </div>
+          </div>
+          <div class="verdict-right">
+            <div class="confidence-badge" id="confidenceBadge" style="display: none;">
+              <span class="conf-lbl">CONFIDENCE</span>
+              <span class="conf-val" id="confidenceValue">--.-%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Detailed Metrics Grid (Revealed only after real inspection) -->
+        <div class="metrics-grid" id="metricsGrid" style="display: none;">
+          <div class="metric-card">
+            <span class="m-label">AI MODEL ARCHITECTURE</span>
+            <span class="m-val highlight-mamba" id="valModelCore">Mamba SS2D (O(N))</span>
+          </div>
+          <div class="metric-card">
+            <span class="m-label">DEFECT AREA</span>
+            <span class="m-val" id="valDefectArea">--</span>
+          </div>
+          <div class="metric-card">
+            <span class="m-label">EPISTEMIC UNCERTAINTY (&sigma;&sup2;)</span>
+            <span class="m-val" id="valUncertainty">--</span>
+          </div>
+          <div class="metric-card">
+            <span class="m-label">CLASSIFIER SCORE</span>
+            <span class="m-val" id="valScore">--</span>
+          </div>
+          <div class="metric-card">
+            <span class="m-label">PROCESSING LATENCY</span>
+            <span class="m-val" id="valLatency">--</span>
+          </div>
+          <div class="metric-card metric-full">
+            <span class="m-label">AUTONOMOUS DECISION BASIS:</span>
+            <span class="m-val basis-text" id="valDecisionBasis">--</span>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Clean Minimalist Footer -->
+  <footer class="app-footer">
+    <div class="footer-left">
+      <span>ANOMANET &bull; Industrial Computer-Vision Surface Inspection Station</span>
+      <span class="footer-sep">&bull;</span>
+      <span>Mamba SS2D State Space Architecture + U-Net Localization</span>
+    </div>
+    <div class="footer-right">
+      <span>Zero-Image-Augmentation Paradigm</span>
+    </div>
+  </footer>
+
+  <script src="app.js?t=1795036000"></script>
 </body>
 </html>
-
