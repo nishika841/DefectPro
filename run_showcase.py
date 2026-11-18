@@ -1,5 +1,5 @@
 """
-AnomaNet — Industrial Surface Defect Inspection Station & API
+AnomaNet / DefectPro — Xebia Showcase Interactive Server & Ingestion API
 Fast zero-latency startup with on-demand neural inference.
 """
 
@@ -103,7 +103,23 @@ class ShowcaseHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+        self.send_header("Pragma", "no-cache")
+        self.send_header("Expires", "0")
         super().end_headers()
+
+    def do_GET(self):
+        if self.path in ("/", ""):
+            self.send_response(302)
+            self.send_header("Location", "/showcase/index.html")
+            self.end_headers()
+            return
+        elif self.path.rstrip("/") == "/showcase":
+            self.send_response(302)
+            self.send_header("Location", "/showcase/index.html")
+            self.end_headers()
+            return
+        super().do_GET()
 
     def do_OPTIONS(self):
         self.send_response(200)
@@ -235,8 +251,12 @@ def open_browser():
         pass
 
 
+class ThreadedHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
+    daemon_threads = True
+    allow_reuse_address = True
+
+
 if __name__ == "__main__":
-    socketserver.TCPServer.allow_reuse_address = True
     print("=" * 65, flush=True)
     print("      ANOMANET INDUSTRIAL SURFACE INSPECTION STATION", flush=True)
     print("=" * 65, flush=True)
@@ -246,7 +266,7 @@ if __name__ == "__main__":
 
     threading.Thread(target=open_browser, daemon=True).start()
 
-    with socketserver.TCPServer(("", PORT), ShowcaseHandler) as httpd:
+    with ThreadedHTTPServer(("", PORT), ShowcaseHandler) as httpd:
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:
