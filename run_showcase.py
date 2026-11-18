@@ -1,7 +1,10 @@
 """
-AnomaNet / DefectPro — Xebia Showcase Interactive Server & Ingestion API
+AnomaNet — Industrial Surface Defect Inspection Station & API
 Fast zero-latency startup with on-demand neural inference.
 """
+
+import matplotlib
+matplotlib.use('Agg')
 
 import http.server
 import socketserver
