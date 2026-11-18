@@ -1,0 +1,19 @@
+# Vercel Deployment Ignore Configuration
+# Keep serverless payload minimal and fast
+
+# Ignore Heavy Training Data & Weights
+data/
+weights/
+outputs/
+src/
+
+# Ignore Local Development Scripts & Logs
+run_showcase.py
+apply_pdf_changes.py
+config.py
+requirements-local.txt
+*.log
+*.pdf
+.git
+.github
+__pycache__/

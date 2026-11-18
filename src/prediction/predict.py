@@ -508,13 +508,28 @@ def save_unified_visualization(orig_image, cam, mask, label, confidence, uncerta
     plt.tight_layout(rect=[0, 0, 1, 0.90])
     output_path.parent.mkdir(parents=True, exist_ok=True)
     
-    # Save isolated clean channel images directly
+    # Save isolated clean channel images directly in high resolution (768x768)
     output_dir = output_path.parent
     base_stem = output_path.stem
     try:
-        Image.fromarray(orig_np).save(output_dir / f"{base_stem}_orig.png")
-        Image.fromarray(seg_overlay).save(output_dir / f"{base_stem}_seg.png")
-        Image.fromarray(gradcam_overlay).save(output_dir / f"{base_stem}_cam.png")
+        disp_w, disp_h = 768, 768
+        orig_hires = np.array(orig_image.convert("RGB").resize((disp_w, disp_h), Image.Resampling.LANCZOS))
+        cam_hires = cv2.resize(cam, (disp_w, disp_h), interpolation=cv2.INTER_LINEAR)
+        heatmap_hires = cv2.applyColorMap(np.uint8(255 * cam_hires), cv2.COLORMAP_JET)
+        heatmap_hires = cv2.cvtColor(heatmap_hires, cv2.COLOR_BGR2RGB)
+        gradcam_hires = cv2.addWeighted(orig_hires, 0.6, heatmap_hires, 0.4, 0)
+
+        mask_hires = cv2.resize(mask_np, (disp_w, disp_h), interpolation=cv2.INTER_NEAREST)
+        seg_hires = orig_hires.copy()
+        if defect_pixels > 0:
+            red_mask_hires = np.zeros_like(orig_hires)
+            red_mask_hires[:, :] = [255, 30, 30]
+            defect_idx_hires = mask_hires > 0.5
+            seg_hires[defect_idx_hires] = cv2.addWeighted(orig_hires[defect_idx_hires], 0.35, red_mask_hires[defect_idx_hires], 0.65, 0)
+
+        Image.fromarray(orig_hires).save(output_dir / f"{base_stem}_orig.png")
+        Image.fromarray(seg_hires).save(output_dir / f"{base_stem}_seg.png")
+        Image.fromarray(gradcam_hires).save(output_dir / f"{base_stem}_cam.png")
     except Exception as e:
         print(f" [NOTICE] Could not save subchannel images: {e}")
 

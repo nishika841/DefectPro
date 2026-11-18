@@ -3,12 +3,21 @@ import json
 import base64
 import io
 import time
+import os
 from pathlib import Path
 import numpy as np
 from PIL import Image, ImageFilter
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
+
+# Set config directory for serverless read-only environments
+os.environ['MPLCONFIGDIR'] = '/tmp/matplotlib'
+try:
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    MATPLOTLIB_AVAILABLE = True
+except Exception as e:
+    print(f"[WARN] Matplotlib initialization deferred: {e}")
+    MATPLOTLIB_AVAILABLE = False
 
 DB_FILE = Path(__file__).resolve().parent / "defect_db.json"
 DEFECT_DB = {}
@@ -87,7 +96,7 @@ def image_to_base64_url(pil_img):
     return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("utf-8")
 
 def generate_visual_channels(pil_img, is_defect, category="SURFACE", filename="", model_arch="MambaDefect-Pro"):
-    disp_w, disp_h = 512, 512
+    disp_w, disp_h = 768, 768
     orig_hires = pil_img.convert("RGB").resize((disp_w, disp_h))
     orig_np = np.array(orig_hires)
 
@@ -160,68 +169,74 @@ def generate_visual_channels(pil_img, is_defect, category="SURFACE", filename=""
     good_prob = 0.0166 if is_defect else 0.9998
     uncertainty = 0.0764 if is_defect else 0.0012
 
-    fig, axes = plt.subplots(1, 4, figsize=(22, 5.5))
-    fig.patch.set_facecolor("#0f172a")
-    status_color = "#ef4444" if label == "Defect" else "#22c55e"
-    unc_text = f" | Epistemic Unc: {uncertainty:.4f}"
+    full_b64 = seg_b64
+    if MATPLOTLIB_AVAILABLE:
+        try:
+            fig, axes = plt.subplots(1, 4, figsize=(22, 5.5))
+            fig.patch.set_facecolor("#0f172a")
+            status_color = "#ef4444" if label == "Defect" else "#22c55e"
+            unc_text = f" | Epistemic Unc: {uncertainty:.4f}"
 
-    fig.suptitle(
-        f"AnomaNet Pipeline ({model_arch}): {category.upper()} | Overall Verdict: {label.upper()} ({conf*100:.2f}% Conf{unc_text})",
-        fontsize=15,
-        fontweight="bold",
-        color="white",
-        y=0.98
-    )
+            fig.suptitle(
+                f"AnomaNet Pipeline ({model_arch}): {category.upper()} | Overall Verdict: {label.upper()} ({conf*100:.2f}% Conf{unc_text})",
+                fontsize=15,
+                fontweight="bold",
+                color="white",
+                y=0.98
+            )
 
-    axes[0].imshow(orig_hires)
-    axes[0].set_title("1. Input Image", fontsize=12, fontweight="bold", color="white", pad=14)
-    axes[0].axis("off")
+            axes[0].imshow(orig_hires)
+            axes[0].set_title("1. Input Image", fontsize=12, fontweight="bold", color="white", pad=14)
+            axes[0].axis("off")
 
-    ax_cls = axes[1]
-    ax_cls.set_facecolor("#1e293b")
-    ax_cls.set_xlim(0, 100)
-    ax_cls.set_ylim(0, 100)
-    ax_cls.axis("off")
-    ax_cls.set_title(f"2. Classification ({model_arch})\n[{label.upper()} ({conf*100:.1f}%)]", 
-                     fontsize=12, fontweight="bold", color=status_color, pad=14)
+            ax_cls = axes[1]
+            ax_cls.set_facecolor("#1e293b")
+            ax_cls.set_xlim(0, 100)
+            ax_cls.set_ylim(0, 100)
+            ax_cls.axis("off")
+            ax_cls.set_title(f"2. Classification ({model_arch})\n[{label.upper()} ({conf*100:.1f}%)]", 
+                             fontsize=12, fontweight="bold", color=status_color, pad=14)
 
-    ax_cls.text(50, 83, f"VERDICT: {label.upper()}", fontsize=13, fontweight="bold", 
-                color=status_color, ha="center",
-                bbox=dict(boxstyle="round,pad=0.45", facecolor="#0f172a", edgecolor=status_color, linewidth=2))
+            ax_cls.text(50, 83, f"VERDICT: {label.upper()}", fontsize=13, fontweight="bold", 
+                        color=status_color, ha="center",
+                        bbox=dict(boxstyle="round,pad=0.45", facecolor="#0f172a", edgecolor=status_color, linewidth=2))
 
-    ax_cls.text(10, 69, f"Defect Prob: {defect_prob*100:.2f}%", fontsize=10, fontweight="bold", color="#f87171")
-    ax_cls.barh(63, 80, height=4.5, left=10, color="#334155")
-    ax_cls.barh(63, max(0.5, 0.8 * defect_prob * 100), height=4.5, left=10, color="#ef4444")
+            ax_cls.text(10, 69, f"Defect Prob: {defect_prob*100:.2f}%", fontsize=10, fontweight="bold", color="#f87171")
+            ax_cls.barh(63, 80, height=4.5, left=10, color="#334155")
+            ax_cls.barh(63, max(0.5, 0.8 * defect_prob * 100), height=4.5, left=10, color="#ef4444")
 
-    ax_cls.text(10, 52, f"Good Prob: {good_prob*100:.2f}%", fontsize=10, fontweight="bold", color="#4ade80")
-    ax_cls.barh(46, 80, height=4.5, left=10, color="#334155")
-    ax_cls.barh(46, max(0.5, 0.8 * good_prob * 100), height=4.5, left=10, color="#22c55e")
+            ax_cls.text(10, 52, f"Good Prob: {good_prob*100:.2f}%", fontsize=10, fontweight="bold", color="#4ade80")
+            ax_cls.barh(46, 80, height=4.5, left=10, color="#334155")
+            ax_cls.barh(46, max(0.5, 0.8 * good_prob * 100), height=4.5, left=10, color="#22c55e")
 
-    ax_cls.text(10, 31, f"Epistemic Unc: {uncertainty:.5f}", fontsize=9.5, fontweight="bold", color="#38bdf8")
-    unc_trigger = "TRIGGERED (High)" if uncertainty >= 0.12 else "STABLE (Low)"
-    unc_trigger_color = "#f97316" if uncertainty >= 0.12 else "#94a3b8"
-    ax_cls.text(10, 22, f"Unc. Status: {unc_trigger}", fontsize=8.5, color=unc_trigger_color)
+            ax_cls.text(10, 31, f"Epistemic Unc: {uncertainty:.5f}", fontsize=9.5, fontweight="bold", color="#38bdf8")
+            unc_trigger = "TRIGGERED (High)" if uncertainty >= 0.12 else "STABLE (Low)"
+            unc_trigger_color = "#f97316" if uncertainty >= 0.12 else "#94a3b8"
+            ax_cls.text(10, 22, f"Unc. Status: {unc_trigger}", fontsize=8.5, color=unc_trigger_color)
 
-    engine_name = "Mamba 4-Dir SS2D + DGDFF (O(N))" if "Mamba" in model_arch else "ResNet-50 Deep Residual Network"
-    ax_cls.text(50, 8, engine_name, fontsize=8.5, color="#94a3b8", ha="center", style="italic")
+            engine_name = "Mamba 4-Dir SS2D + DGDFF (O(N))" if "Mamba" in model_arch else "ResNet-50 Deep Residual Network"
+            ax_cls.text(50, 8, engine_name, fontsize=8.5, color="#94a3b8", ha="center", style="italic")
 
-    axes[2].imshow(seg_np)
-    seg_title = f"Defect Area: {defect_pixels:.0f} px" if defect_pixels > 0 else "No Defect Detected"
-    axes[2].set_title(f"3. U-Net Segmentation\n[{seg_title}]", 
-                      fontsize=12, fontweight="bold", color=status_color if defect_pixels > 0 else "#22c55e", pad=14)
-    axes[2].axis("off")
+            axes[2].imshow(seg_np)
+            seg_title = f"Defect Area: {defect_pixels:.0f} px" if defect_pixels > 0 else "No Defect Detected"
+            axes[2].set_title(f"3. U-Net Segmentation\n[{seg_title}]", 
+                              fontsize=12, fontweight="bold", color=status_color if defect_pixels > 0 else "#22c55e", pad=14)
+            axes[2].axis("off")
 
-    axes[3].imshow(cam_np)
-    axes[3].set_title("4. Grad-CAM Explainability\n[Attention Activation Focus]", 
-                      fontsize=12, fontweight="bold", color=status_color, pad=14)
-    axes[3].axis("off")
+            axes[3].imshow(cam_np)
+            axes[3].set_title("4. Grad-CAM Explainability\n[Attention Activation Focus]", 
+                              fontsize=12, fontweight="bold", color=status_color, pad=14)
+            axes[3].axis("off")
 
-    plt.tight_layout(rect=[0, 0, 1, 0.90])
-    buf = io.BytesIO()
-    plt.savefig(buf, format="png", dpi=180, bbox_inches="tight", facecolor=fig.get_facecolor(), edgecolor="none")
-    plt.close(fig)
-    buf.seek(0)
-    full_b64 = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("utf-8")
+            plt.tight_layout(rect=[0, 0, 1, 0.90])
+            buf = io.BytesIO()
+            plt.savefig(buf, format="png", dpi=120, bbox_inches="tight", facecolor=fig.get_facecolor(), edgecolor="none")
+            plt.close(fig)
+            buf.seek(0)
+            full_b64 = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("utf-8")
+        except Exception as e:
+            print(f"[WARN] Matplotlib render fallback: {e}")
+            full_b64 = seg_b64
 
     return orig_b64, seg_b64, cam_b64, full_b64, defect_pixels
 
@@ -235,6 +250,16 @@ class handler(http.server.BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(200)
         self.end_headers()
+
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps({
+            "status": "online",
+            "service": "AnomaNet Industrial Defect Inspection API",
+            "model": "Mamba SS2D + ResNet-50 Ensemble"
+        }).encode("utf-8"))
 
     def do_POST(self):
         content_length = int(self.headers.get("Content-Length", 0))
