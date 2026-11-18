@@ -138,9 +138,8 @@ class ShowcaseHandler(http.server.SimpleHTTPRequestHandler):
                 category = payload.get("category", "tile").lower().strip()
                 image_data = payload.get("image_data", "")
                 filename = payload.get("filename", "desktop_sample.png")
-                raw_item_id = str(payload.get("item_id", "latest"))
-                import re
-                uid = re.sub(r'[^a-zA-Z0-9_-]', '', raw_item_id) or "latest"
+                ts = int(time.time() * 1000)
+                uid = f"{category}_{ts}"
 
                 if "," in image_data:
                     image_data = image_data.split(",", 1)[1]
@@ -158,7 +157,7 @@ class ShowcaseHandler(http.server.SimpleHTTPRequestHandler):
 
                 # Cross-check and auto-correct category if file features indicate specific class
                 detected_cat = auto_detect_category(temp_input, filename)
-                if detected_cat and (category == "tile" or "cut" in filename.lower() or "leather" in filename.lower()):
+                if detected_cat and (category == "tile" or "cut" in filename.lower() or "leather" in filename.lower() or "toothbrush" in filename.lower() or "bristle" in filename.lower()):
                     if detected_cat != category:
                         print(f"[SERVER] Auto-detected category alignment: {category} -> {detected_cat}", flush=True)
                         category = detected_cat
@@ -197,10 +196,10 @@ class ShowcaseHandler(http.server.SimpleHTTPRequestHandler):
                         "uncertainty": f"{result['uncertainty']:.5f}",
                         "defect_pixels": f"{result['defect_pixels']:.0f} px",
                         "decision_basis": result["decision_details"],
-                        "orig_img": f"assets/uploaded_{uid}_orig.png",
-                        "seg_img": f"assets/uploaded_{uid}_seg.png",
-                        "cam_img": f"assets/uploaded_{uid}_gradcam.png",
-                        "full_img": f"assets/uploaded_{uid}_unified.png"
+                        "orig_img": f"assets/uploaded_{uid}_orig.png?v={ts}",
+                        "seg_img": f"assets/uploaded_{uid}_seg.png?v={ts}",
+                        "cam_img": f"assets/uploaded_{uid}_gradcam.png?v={ts}",
+                        "full_img": f"assets/uploaded_{uid}_unified.png?v={ts}"
                     }
                 else:
                     resp_data = {

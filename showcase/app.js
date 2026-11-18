@@ -105,7 +105,7 @@
     for (const cat of categories) {
       if (lower.includes(cat)) return cat;
     }
-    if (lower.includes('bristle')) return 'toothbrush';
+    if (lower.includes('bristle') || lower.includes('brush') || lower.includes('burhs')) return 'toothbrush';
     if (lower.includes('crack') || lower.includes('glue_strip') || lower.includes('stroke')) return 'tile';
     if (lower.includes('cut') || lower.includes('fold') || lower.includes('poke')) return 'leather';
     if (lower.includes('thread') || lower.includes('scratch')) return 'screw';
@@ -250,7 +250,10 @@
       DOM.viewerChannelTag.textContent = '01 ORIGINAL IMAGE';
     } else if (viewKey === 'seg') {
       DOM.mainViewerImg.src = res.seg_img || AppState.dataUrl;
-      DOM.viewerChannelTag.textContent = '02 LOCALIZED DEFECT MASK (U-NET)';
+      const isDefect = res.verdict === 'FLAGGED' || res.label === 'Defect';
+      DOM.viewerChannelTag.textContent = isDefect
+        ? `02 DEFECT LOCALIZATION (U-NET) • ${res.defect_pixels}`
+        : '02 SEGMENTATION • ZERO DEFECTS DETECTED (PASS)';
     } else if (viewKey === 'cam') {
       DOM.mainViewerImg.src = res.cam_img || AppState.dataUrl;
       DOM.viewerChannelTag.textContent = '03 AI ATTENTION HEATMAP (GRAD-CAM)';
@@ -297,7 +300,7 @@
           image_data: AppState.dataUrl,
           category: AppState.category,
           filename: AppState.filename,
-          item_id: 'latest'
+          item_id: 'specimen_' + Date.now()
         })
       });
 
@@ -337,9 +340,9 @@
           ? 'Classification Score (99.85%) + Localized Defect Mask (1,477 px)'
           : 'Normal Surface Verified: Baseline distribution with zero anomaly spikes.',
         orig_img: AppState.dataUrl,
-        seg_img: 'assets/tile_crack_000_seg.png',
-        cam_img: 'assets/tile_crack_000_gradcam.png',
-        full_img: 'assets/tile_crack_000_unified.png',
+        seg_img: AppState.dataUrl,
+        cam_img: AppState.dataUrl,
+        full_img: AppState.dataUrl,
         latencyText: `${latencyMs} ms`
       };
 
